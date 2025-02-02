@@ -12,7 +12,9 @@ interface AIAnalysisPanelProps {
 }
 
 const AIAnalysisPanel = ({
-  onAnalyze = async (query: string) => `AI analysis for: ${query}`,
+  onAnalyze = async (query: string) => {
+    throw new Error("Analysis function not implemented");
+  },
   isLoading = false,
   analysis = "No analysis available yet. Try asking a question about the stock.",
 }: AIAnalysisPanelProps) => {

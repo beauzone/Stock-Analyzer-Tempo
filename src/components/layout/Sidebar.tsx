@@ -1,146 +1,137 @@
-import React from "react";
+import React, { useState } from "react";
+import { useWatchlistPrices } from "@/lib/hooks/useWatchlistPrices";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Search, Star, Plus, ChevronRight } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useWatchlistStore } from "@/lib/store/watchlistStore";
+import StockSearchDialog from "../search/StockSearchDialog";
+import { useStockStore } from "@/lib/store/stockStore";
+import NewWatchlistDialog from "../watchlist/NewWatchlistDialog";
+import ManageWatchlistsDialog from "../watchlist/ManageWatchlistsDialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface WatchlistItem {
-  id: string;
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-}
+const Sidebar = () => {
+  useWatchlistPrices();
+  const [filterText, setFilterText] = useState("");
+  const { watchlists } = useWatchlistStore();
+  const { addChart } = useStockStore();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedWatchlist, setSelectedWatchlist] = useState(watchlists[0]?.id);
+  const [isNewWatchlistOpen, setIsNewWatchlistOpen] = useState(false);
+  const [isManageWatchlistsOpen, setIsManageWatchlistsOpen] = useState(false);
 
-interface Watchlist {
-  id: string;
-  name: string;
-  stocks: WatchlistItem[];
-}
+  const currentWatchlist = watchlists.find((w) => w.id === selectedWatchlist);
 
-interface SidebarProps {
-  watchlists?: Watchlist[];
-  onSelectStock?: (symbol: string) => void;
-  onAddWatchlist?: () => void;
-  onAddToWatchlist?: (watchlistId: string) => void;
-}
+  const handleStockSelect = (symbol: string) => {
+    addChart(symbol);
+  };
 
-const Sidebar = ({
-  watchlists = [
-    {
-      id: "1",
-      name: "My Watchlist",
-      stocks: [
-        {
-          id: "1",
-          symbol: "AAPL",
-          name: "Apple Inc.",
-          price: 150.23,
-          change: 1.2,
-        },
-        {
-          id: "2",
-          symbol: "GOOGL",
-          name: "Alphabet Inc.",
-          price: 2789.45,
-          change: -0.5,
-        },
-        {
-          id: "3",
-          symbol: "MSFT",
-          name: "Microsoft Corp.",
-          price: 290.12,
-          change: 0.8,
-        },
-      ],
-    },
-    {
-      id: "2",
-      name: "Tech Stocks",
-      stocks: [
-        {
-          id: "4",
-          symbol: "NVDA",
-          name: "NVIDIA Corp.",
-          price: 450.78,
-          change: 2.3,
-        },
-        {
-          id: "5",
-          symbol: "AMD",
-          name: "Advanced Micro Devices",
-          price: 120.34,
-          change: 1.7,
-        },
-      ],
-    },
-  ],
-  onSelectStock = () => {},
-  onAddWatchlist = () => {},
-  onAddToWatchlist = () => {},
-}: SidebarProps) => {
+  const handleWatchlistSelect = (value: string) => {
+    if (value === "new") {
+      setIsNewWatchlistOpen(true);
+    } else if (value === "manage") {
+      setIsManageWatchlistsOpen(true);
+    } else {
+      setSelectedWatchlist(value);
+    }
+  };
+
+  const filteredStocks = currentWatchlist?.stocks.filter(
+    (stock) =>
+      stock.symbol.toLowerCase().includes(filterText.toLowerCase()) ||
+      stock.name.toLowerCase().includes(filterText.toLowerCase()),
+  );
+
   return (
     <div className="w-[280px] h-full bg-background border-r flex flex-col">
-      <div className="p-4 border-b">
+      <div className="p-4 space-y-4">
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search stocks..." className="pl-8" />
+          <Input
+            placeholder="Search"
+            className="pl-8"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Select
+            value={selectedWatchlist}
+            onValueChange={handleWatchlistSelect}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a watchlist" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {watchlists.map((list) => (
+                  <SelectItem key={list.id} value={list.id}>
+                    {list.name}
+                  </SelectItem>
+                ))}
+                <SelectSeparator />
+                <SelectItem value="new">New Watchlist</SelectItem>
+                <SelectItem value="manage">Manage Watchlists</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {watchlists.map((watchlist) => (
-            <Card key={watchlist.id} className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">{watchlist.name}</h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onAddToWatchlist(watchlist.id)}
+        <div className="p-4 space-y-1">
+          {filteredStocks?.map((stock) => (
+            <Button
+              key={stock.id}
+              variant="ghost"
+              className="w-full justify-between h-auto py-2 px-3"
+              onClick={() => handleStockSelect(stock.symbol)}
+            >
+              <div className="flex flex-col items-start">
+                <span className="font-medium">{stock.symbol}</span>
+                <span className="text-xs text-muted-foreground">
+                  {stock.name}
+                </span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span>${stock.price.toFixed(2)}</span>
+                <span
+                  className={`text-xs ${stock.change >= 0 ? "text-green-500" : "text-red-500"}`}
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                  {stock.change > 0 ? "+" : ""}
+                  {stock.change.toFixed(2)}%
+                </span>
               </div>
-              <div className="space-y-2">
-                {watchlist.stocks.map((stock) => (
-                  <Button
-                    key={stock.id}
-                    variant="ghost"
-                    className="w-full justify-between"
-                    onClick={() => onSelectStock(stock.symbol)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4" />
-                      <span>{stock.symbol}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span>${stock.price}</span>
-                      <span
-                        className={
-                          stock.change >= 0 ? "text-green-500" : "text-red-500"
-                        }
-                      >
-                        {stock.change > 0 ? "+" : ""}
-                        {stock.change}%
-                      </span>
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            </Card>
+            </Button>
           ))}
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t">
-        <Button className="w-full" onClick={onAddWatchlist}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Watchlist
-        </Button>
-      </div>
+      <StockSearchDialog
+        open={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+        onSelect={handleStockSelect}
+      />
+
+      <NewWatchlistDialog
+        open={isNewWatchlistOpen}
+        onOpenChange={setIsNewWatchlistOpen}
+      />
+
+      <ManageWatchlistsDialog
+        open={isManageWatchlistsOpen}
+        onOpenChange={setIsManageWatchlistsOpen}
+      />
     </div>
   );
 };
